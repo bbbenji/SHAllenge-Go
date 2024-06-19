@@ -63,7 +63,7 @@ func worker(ctx context.Context, id int) {
                 nonce := hex.EncodeToString(nonceBuf[:nonceLength])
 
                 // Ensure the combined length of username/nonce is <= 64
-                if len(username)+1+len(nonce) > 64 {
+                if (len(username) + 1 + len(nonce)) > 64 {
                     nonce = nonce[:64-len(username)-1]
                 }
 
@@ -77,6 +77,17 @@ func worker(ctx context.Context, id int) {
     }
 }
 
+func formatHashWithSpaces(hash string) string {
+    var formattedHash string
+    for i, c := range hash {
+        if i > 0 && i%8 == 0 {
+            formattedHash += " "
+        }
+        formattedHash += string(c)
+    }
+    return formattedHash
+}
+
 func compareHash(leadingZeros int, hash []byte, input string) {
     mu.Lock()
     defer mu.Unlock()
@@ -86,15 +97,16 @@ func compareHash(leadingZeros int, hash []byte, input string) {
         copy(lowestHash, hash)
         lowestInput = input
 
+        formattedHash := formatHashWithSpaces(hex.EncodeToString(hash))
         elapsedTime := time.Since(startTime).Seconds()
         iterationsPerSecond := float64(atomic.LoadInt64(&iteration)) / elapsedTime
         fmt.Printf("\n\nIteration: %d\nNew lowest hash: %s\nInput: %s\nLeading zeros: %d\nIterations per second: %.2f\n\n",
-            atomic.LoadInt64(&iteration), hex.EncodeToString(hash), input, leadingZeros, iterationsPerSecond)
+            atomic.LoadInt64(&iteration), formattedHash, input, leadingZeros, iterationsPerSecond)
 
         // Send notification using beeep
         go func() {
             err := beeep.Alert("New Lowest Hash Found", fmt.Sprintf("Hash: %s\nInput: %s\nLeading zeros: %d",
-                hex.EncodeToString(hash), input, leadingZeros), "")
+                formattedHash, input, leadingZeros), "")
             if err != nil {
                 fmt.Println("Error sending notification:", err)
             }
